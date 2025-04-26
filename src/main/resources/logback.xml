@@ -1,0 +1,62 @@
+<configuration>
+
+<property name="LOG_DIR" value="logs" />
+<property name="LOG_FILE_NAME" value="app" />
+<property name="ERROR_LOG_FILE_NAME" value="error" />
+<!-- Подгружаем уровень из application.conf -->
+<property name="LOG_LEVEL" value="${LOG_LEVEL:-INFO}" />
+
+<!-- Консольный аппендер -->
+<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+        <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+</appender>
+
+<!-- Аппендер для обычных логов (INFO и DEBUG) -->
+<appender name="ROLLING_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${LOG_FILE_NAME}.log</file>
+
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <!-- Паттерн имени файла: логи будут называться app-2025-04-26.log -->
+        <fileNamePattern>${LOG_DIR}/${LOG_FILE_NAME}-%d{yyyy-MM-dd}.log</fileNamePattern>
+
+        <!-- Храним не более 30 архивов (30 дней) -->
+        <maxHistory>30</maxHistory>
+
+        <!-- Ограничиваем общий размер логов -->
+        <totalSizeCap>3GB</totalSizeCap>
+    </rollingPolicy>
+
+    <encoder>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+</appender>
+
+<!-- Аппендер для логов с ошибками (ERROR, WARN) -->
+<appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+    <file>${LOG_DIR}/${ERROR_LOG_FILE_NAME}.log</file>
+
+    <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>${LOG_DIR}/${ERROR_LOG_FILE_NAME}-%d{yyyy-MM-dd}.log</fileNamePattern>
+        <maxHistory>30</maxHistory>
+        <totalSizeCap>1GB</totalSizeCap>
+    </rollingPolicy>
+
+    <encoder>
+        <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+</appender>
+
+<!-- Рут логгер -->
+<root level="${LOG_LEVEL}">
+    <appender-ref ref="CONSOLE"/>
+    <appender-ref ref="ROLLING_FILE"/>
+</root>
+
+<!-- Логгер для ошибок (ERROR и WARN) -->
+<logger name="ERROR_LOGGER" level="ERROR">
+    <appender-ref ref="ERROR_FILE"/>
+</logger>
+
+</configuration>
