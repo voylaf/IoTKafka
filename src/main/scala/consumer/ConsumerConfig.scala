@@ -1,4 +1,5 @@
 package com.github.voylaf
+package consumer
 
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
@@ -7,31 +8,29 @@ import pureconfig.generic.auto._
 
 import java.util.Properties
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import scala.language.implicitConversions
 
-final case class ProducerConfig(producer: Config, topic: String, seed: Long)
+final case class ConsumerConfig(consumer: Config, topic: String)
 
-object ProducerConfig extends LazyLogging {
-  def getConfig(resource: String): (Properties, String, Long) = {
+object ConsumerConfig extends LazyLogging {
+  def getConfig(resource: String): (Properties, String) = {
     // Load the full configuration
     val fullConfig: Config = ConfigFactory.load(resource)
 
     // Get producer-config with links resolving
-    val producerConfig: Config = fullConfig.getConfig("producer").resolve()
+    val consumerConfig: Config = fullConfig.getConfig("consumer").resolve()
 
     // Read topic and seed separately via PureConfig
-    val topic = ConfigSource.fromConfig(fullConfig).loadOrThrow[ProducerConfig].topic
-    val seed = ConfigSource.fromConfig(fullConfig).loadOrThrow[ProducerConfig].seed
+    val topic = ConfigSource.fromConfig(fullConfig).loadOrThrow[ConsumerConfig].topic
 
-    val props = producerConfigToProperties(producerConfig)
+    val props = consumerConfigToProperties(consumerConfig)
 
     logger.info(s"[CONFIG] topic: $topic")
     logger.info(s"[CONFIG] properties: ${props.entrySet()}")
 
-    (props, topic, seed)
+    (props, topic)
   }
 
-  private def producerConfigToProperties(config: Config): Properties = {
+  private def consumerConfigToProperties(config: Config): Properties = {
     val map: Map[String, AnyRef] = config.entrySet().asScala.map(entry =>
       entry.getKey -> config.getAnyRef(entry.getKey)
     ).toMap

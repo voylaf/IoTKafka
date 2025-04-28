@@ -1,4 +1,5 @@
 package com.github.voylaf
+package producer
 
 import java.time.LocalDate
 import scala.util.Random

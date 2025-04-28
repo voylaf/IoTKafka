@@ -1,7 +1,8 @@
 package com.github.voylaf
+package producer
 
-import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 
 trait ProducerUtils[T] extends LazyLogging {
 

@@ -1,4 +1,5 @@
 package com.github.voylaf
+package producer
 
 import org.apache.kafka.clients.producer.KafkaProducer
 
