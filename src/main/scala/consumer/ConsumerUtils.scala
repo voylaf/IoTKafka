@@ -13,15 +13,16 @@ trait ConsumerUtils[T] extends LazyLogging {
   def pool[K, V](
       consumer: KafkaConsumer[K, V],
       timeout: FiniteDuration = 5 seconds
-  ): Iterable[(K, V)] = {
+  ): ConsumerRecords[K, V] = {
     val records: ConsumerRecords[K, V] =
       consumer.poll(new ScalaDurationOps(timeout).toJava)
-    val messages = records.asScala.map(record => {
+    records.asScala.foreach(record => {
       logger.debug(
-        s"received record from topic ${record.topic}. Key:  ${record.key} value: ${record.value.toString}"
+        s"Topic: ${record.topic()}, Partition: ${record.partition()}, Offset: ${record.offset()}, Key: ${record.key()}, Value: ${record.value()}"
       )
-      (record.key, record.value)
     })
-    messages
+    records
   }
+
+  def processRecord(key: String, value: String): Unit
 }
