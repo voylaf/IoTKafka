@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 final case class ConsumerConfig(consumer: Config, topic: String)
 
 object ConsumerConfig extends LazyLogging {
-  def getConfig(resource: String): (Properties, String) = {
+  def getConfig(resource: String): (Config, String) = {
     // Load the full configuration
     val fullConfig: Config = ConfigFactory.load(resource)
 
@@ -22,15 +22,12 @@ object ConsumerConfig extends LazyLogging {
     // Read topic and seed separately via PureConfig
     val topic = ConfigSource.fromConfig(fullConfig).loadOrThrow[ConsumerConfig].topic
 
-    val props = consumerConfigToProperties(consumerConfig)
-
     logger.info(s"[CONFIG] topic: $topic")
-    logger.info(s"[CONFIG] properties: ${props.entrySet()}")
 
-    (props, topic)
+    (consumerConfig, topic)
   }
 
-  private def consumerConfigToProperties(config: Config): Properties = {
+  def consumerConfigToProperties(config: Config): Properties = {
     val map: Map[String, AnyRef] = config.entrySet().asScala.map(entry =>
       entry.getKey -> config.getAnyRef(entry.getKey)
     ).toMap

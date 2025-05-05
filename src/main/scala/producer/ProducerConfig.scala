@@ -13,7 +13,7 @@ import scala.language.implicitConversions
 final case class ProducerConfig(producer: Config, topic: String, seed: Long)
 
 object ProducerConfig extends LazyLogging {
-  def getConfig(resource: String): (Properties, String, Long) = {
+  def getConfig(resource: String): (Config, String, Long) = {
     // Load the full configuration
     val fullConfig: Config = ConfigFactory.load(resource)
 
@@ -24,12 +24,9 @@ object ProducerConfig extends LazyLogging {
     val topic = ConfigSource.fromConfig(fullConfig).loadOrThrow[ProducerConfig].topic
     val seed = ConfigSource.fromConfig(fullConfig).loadOrThrow[ProducerConfig].seed
 
-    val props = producerConfigToProperties(producerConfig)
-
     logger.info(s"[CONFIG] topic: $topic")
-    logger.info(s"[CONFIG] properties: ${props.entrySet()}")
 
-    (props, topic, seed)
+    (producerConfig, topic, seed)
   }
 
   private def producerConfigToProperties(config: Config): Properties = {
