@@ -15,7 +15,7 @@ object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
   val producerSettings: ProducerSettings[IO, String, Article] =
     KafkaCodecs.producerSettings[String, Article](config.getString("bootstrap.servers"))
 
-  val articles: List[Article] = FancyGenerator.withSeed(seed).articles
+  val articles: Seq[Article] = FancyGenerator.withSeed(seed).articles take 200
 
   val chunkSize: Int   = config.getInt("chunk-size")
   val parallelism: Int = config.getInt("parallelism")

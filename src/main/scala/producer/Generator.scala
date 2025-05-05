@@ -6,7 +6,7 @@ import scala.util.Random
 
 trait Generator {
   def article: Article
-  def articles: List[Article]
+  def articles: Seq[Article]
 }
 
 object SimpleGenerator {
@@ -22,10 +22,8 @@ object SimpleGenerator {
     private lazy val authors: Vector[Author] =
       (1 to 10).map(_ => Author(randomString(Random.between(5, 10)))).toVector
 
-    def articles: List[Article] = {
-      val count = rand.between(5, 25)
-      (1 to count).map(_ => article).toList
-    }
+    def articles: LazyList[Article] =
+      article #:: articles
 
     def article: Article =
       Article(
@@ -77,10 +75,8 @@ object FancyGenerator {
     private lazy val authors: Vector[Author] =
       (1 to 10).map(_ => Author(fullName)).toVector
 
-    def articles: List[Article] = {
-      val count = rand.between(5, 25)
-      (1 to count).map(_ => article).toList
-    }
+    def articles: LazyList[Article] =
+      article #:: articles
 
     def article: Article = {
       val title   = (1 to rand.between(2, 5)).map(_ => randomFrom(titleWords)).mkString(" ")
