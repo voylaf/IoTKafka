@@ -13,14 +13,18 @@ object ArticleJsonStringConsumerFs2 extends IOApp.Simple with StrictLogging {
   LoggingSetup.init()
 
   private val (config, topic) = ConsumerConfig.getConfig("kafka-intro.conf")
+  private val serdeFormat: KafkaSerdeProvider[IO, String, Article] =
+    SerdeFormat
+      .fromString(config.getString("serde-format"))
+      .fold(sys.error, _.provider[IO, String, Article])
 
   private val consumerSettings =
-    KafkaCodecs.consumerSettings[String, Article](
+    KafkaCodecs.consumerSettings[IO, String, Article](
       config.getString("group.id"),
       config.getString("bootstrap.servers")
-    )
+    )(serdeFormat)
 
-  val chunkSize: Int = config.getInt("chunk-size")
+  val chunkSize: Int   = config.getInt("chunk-size")
   val parallelism: Int = config.getInt("parallelism")
 
   private val stream =

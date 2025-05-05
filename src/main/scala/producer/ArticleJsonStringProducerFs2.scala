@@ -12,8 +12,13 @@ object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
   LoggingSetup.init()
 
   private val (config, topic, seed) = ProducerConfig.getConfig("kafka-intro.conf")
-  val producerSettings: ProducerSettings[IO, String, Article] =
-    KafkaCodecs.producerSettings[String, Article](config.getString("bootstrap.servers"))
+  private val serdeFormat =
+    SerdeFormat
+      .fromString(config.getString("serde-format"))
+      .fold(sys.error, _.provider[IO, String, Article])
+
+  private val producerSettings: ProducerSettings[IO, String, Article] =
+    KafkaCodecs.producerSettings[IO, String, Article](config.getString("bootstrap.servers"))(serdeFormat)
 
   val articles: Seq[Article] = FancyGenerator.withSeed(seed).articles take 200
 
