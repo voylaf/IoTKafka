@@ -1,6 +1,8 @@
 package com.github.voylaf
 package producer
 
+import domain.{Article, Author}
+
 import java.time.LocalDate
 import scala.util.Random
 
@@ -72,7 +74,7 @@ object FancyGenerator {
     private def fullName: String =
       s"${randomFrom(firstNames)} ${randomFrom(lastNames)}"
 
-    private lazy val authors: Vector[Author] =
+    private lazy val DomainAuthors: Vector[Author] =
       (1 to 10).map(_ => Author(fullName)).toVector
 
     def articles: LazyList[Article] =
@@ -89,7 +91,7 @@ object FancyGenerator {
         title = title,
         content = content,
         created = created,
-        author = randomFrom(authors)
+        author = randomFrom(DomainAuthors)
       )
     }
   }

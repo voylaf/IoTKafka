@@ -3,46 +3,23 @@ package com.github.voylaf
 import cats.effect.{Resource, Sync}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka._
-import io.circe.generic.auto._
 import io.circe.{parser, Decoder, Encoder}
 import io.circe.syntax._
 import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
 import org.apache.avro.specific.SpecificRecord
+import scala.jdk.CollectionConverters._
 
 sealed trait SerdeFormat
 
-case object Circe extends SerdeFormat
-
-case object Avro extends SerdeFormat
-
 object SerdeFormat {
+  case object Circe extends SerdeFormat
+
+  case object Avro extends SerdeFormat
+
   def fromString(str: String): Either[String, SerdeFormat] = str.toLowerCase match {
     case "circe" => Right(Circe)
     case "avro"  => Right(Avro)
     case other   => Left(s"Unknown serde format: $other")
-  }
-}
-
-object SerdeFactory {
-  def forFormat[F[_]: Sync, K, V](
-      format: SerdeFormat
-  )(implicit
-      ke: Encoder[K],
-      kd: Decoder[K],
-      ve: Encoder[V],
-      vd: Decoder[V]
-  ): KafkaSerdeProvider[F, K, V] = format match {
-    case Circe => KafkaCodecs.circeSerdeProvider[F, K, V]
-    case Avro =>
-      throw new IllegalArgumentException("Avro serde requires SpecificRecord. Use different overload.")
-  }
-
-  def forAvro[F[_]: Sync, K <: SpecificRecord, V <: SpecificRecord](
-      format: SerdeFormat
-  ): KafkaSerdeProvider[F, K, V] = format match {
-    case Avro => KafkaCodecs.avroSerdeProvider[F, K, V]
-    case Circe =>
-      throw new IllegalArgumentException("Circe serde requires Encoder/Decoder. Use different overload.")
   }
 }
 
@@ -83,24 +60,32 @@ object KafkaCodecs extends StrictLogging {
       override val valueDeserializer: Resource[F, ValueDeserializer[F, V]] = Resource.pure(circeJsonDeserializer[V])
     }
 
-  def avroSerdeProvider[F[_]: Sync, K <: SpecificRecord, V <: SpecificRecord]: KafkaSerdeProvider[F, K, V] =
+  def avroSerdeProvider[F[_]: Sync, K, V <: SpecificRecord]: KafkaSerdeProvider[F, K, V] =
     new KafkaSerdeProvider[F, K, V] {
+      private val avroConfig: java.util.Map[String, AnyRef] = Map[String, AnyRef](
+        "specific.avro.reader" -> java.lang.Boolean.TRUE
+      ).asJava
+
       override val keySerializer: Resource[F, KeySerializer[F, K]] = {
         val delegate = new KafkaAvroSerializer().asInstanceOf[KafkaSerializer[K]]
+        delegate.configure(avroConfig, true)
         Resource.pure(Serializer.delegate[F, K](delegate))
       }
       override val valueSerializer: Resource[F, ValueSerializer[F, V]] = {
         val delegate = new KafkaAvroSerializer().asInstanceOf[KafkaSerializer[V]]
+        delegate.configure(avroConfig, true)
         Resource.pure(Serializer.delegate[F, V](delegate))
       }
 
       override val keyDeserializer: Resource[F, KeyDeserializer[F, K]] = {
         val delegate = new KafkaAvroDeserializer().asInstanceOf[KafkaDeserializer[K]]
+        delegate.configure(avroConfig, true)
         Resource.pure(Deserializer.delegate[F, K](delegate))
       }
 
       override val valueDeserializer: Resource[F, ValueDeserializer[F, V]] = {
         val delegate = new KafkaAvroDeserializer().asInstanceOf[KafkaDeserializer[V]]
+        delegate.configure(avroConfig, true)
         Resource.pure(Deserializer.delegate[F, V](delegate))
       }
     }
@@ -129,3 +114,4 @@ object KafkaCodecs extends StrictLogging {
   }
 
 }
+
