@@ -1,53 +1,74 @@
 package com.github.voylaf
 package consumer
 
-import cats.effect.{IO, IOApp}
-import avro.{Article => AvroArticle}
+import cats.effect.{ExitCode, IO, IOApp, Resource}
+import avro.{Article => AvroArticle, Author => AvroAuthor}
 import domain.Article
+
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka._
+import fs2.{Stream => Fs2Stream}
+import io.circe.Decoder
 import io.circe.generic.auto._
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-object ArticleJsonStringConsumerFs2 extends IOApp.Simple with StrictLogging {
+object ArticleJsonStringConsumerFs2 extends IOApp with StrictLogging {
   LoggingSetup.init()
 
   private val (config, topic) = ConsumerConfig.getConfig("kafka-intro.conf")
-  private val consumerSettings =
-    SerdeFormat
-      .fromString(config.getString("serde-format")) match {
-      case Right(SerdeFormat.Circe) =>
-        val serde = KafkaCodecs.circeSerdeProvider[IO, String, Article]
-        KafkaCodecs.consumerSettings(config.getString("group.id"), config.getString("bootstrap.servers"))(serde)
-
-      case Right(SerdeFormat.Avro) =>
-        val serde = KafkaCodecs.avroSerdeProvider[IO, String, AvroArticle]
-        KafkaCodecs.consumerSettings(config.getString("group.id"), config.getString("bootstrap.servers"))(serde)
-
-      case Left(err) => sys.error(err)
+  def groupId: String         = config.getString("group.id")
+  def servers: String         = config.getString("bootstrap.servers")
+  private def serdeFormatIO: IO[SerdeFormat] =
+    SerdeFormat.fromString(config.getString("serde-format")) match {
+      case Right(format) => IO.pure(format)
+      case Left(_)       => IO.raiseError(new IllegalArgumentException("Unknown serde format"))
     }
 
-  val chunkSize: Int   = config.getInt("chunk-size")
-  val parallelism: Int = config.getInt("parallelism")
+  def chunkSize: Int   = config.getInt("chunk-size")
+  def parallelism: Int = config.getInt("parallelism")
 
-  private val stream =
+//  is this a small hack via avro4s?
+  private def stream[A: Decoder](
+      logFn: A => String,
+      serdeProvider: KafkaSerdeProvider[IO, String, A]
+  ): Resource[IO, Fs2Stream[IO, Unit]] = {
+    val consumerSettings = KafkaCodecs.consumerSettings(groupId, servers)(serdeProvider)
     KafkaConsumer
-      .stream(consumerSettings)
+      .resource(consumerSettings)
       .evalTap(_.subscribeTo(topic))
-      .flatMap(_.stream)
-      .parEvalMapUnordered(parallelism) { committable =>
-        for {
-          article <- IO.pure(committable.record.value)
-          _ <- IO(logger.info(
-            s"New article received: ${article} (${article.getClass})"
-//            s"New article received. Title: ${article.title}. Author: ${article.author.name}"
-          ))
-        } yield committable.offset
+      .map {
+        _.stream
+          .parEvalMapUnordered(parallelism) { committable =>
+            for {
+              article <- IO.pure(committable.record.value)
+              _       <- IO(logger.info(logFn(article)))
+            } yield committable.offset
+          }
+          .through(commitBatchWithin(chunkSize, 5.seconds))
       }
-      .through(commitBatchWithin(chunkSize, 5 seconds)) // commit the batch
+  }
 
-  override def run: IO[Unit] =
-    stream.compile.drain
+  override def run(args: List[String]): IO[ExitCode] = {
+    serdeFormatIO.map {
+      case SerdeFormat.Circe =>
+        val serde = KafkaCodecs.circeSerdeProvider[IO, String, Article]
+        val logFn = (article: Article) => s"New article received. Title: ${article.title}. Author: ${article.author.name}"
+        stream[Article](logFn, serde)
+
+      case SerdeFormat.Avro =>
+        val schemaUrl: String = config.getString("schema.registry.url")
+        val serde             = KafkaCodecs.avroSerdeProvider[IO, String, AvroArticle](schemaUrl)
+        val logFn             = (article: AvroArticle) => s"New article received. Title: ${article.title}. Author: ${article.author.name}"
+        stream[AvroArticle](logFn, serde)
+    }
+      .flatMap(_.use(_.compile.drain))
+      .as(ExitCode.Success)
+      .handleErrorWith { ex =>
+        logger.error("Error during stream execution", ex)
+        IO.pure(ExitCode.Error)
+      }
+
+  }
 }

@@ -60,28 +60,24 @@ object KafkaCodecs extends StrictLogging {
       override val valueDeserializer: Resource[F, ValueDeserializer[F, V]] = Resource.pure(circeJsonDeserializer[V])
     }
 
-  def avroSerdeProvider[F[_]: Sync, K, V <: SpecificRecord]: KafkaSerdeProvider[F, K, V] =
-    new KafkaSerdeProvider[F, K, V] {
+  def avroSerdeProvider[F[_]: Sync, K <: String, V <: SpecificRecord](schemaUrl: String): KafkaSerdeProvider[F, String, V] =
+    new KafkaSerdeProvider[F, String, V] {
       private val avroConfig: java.util.Map[String, AnyRef] = Map[String, AnyRef](
-        "specific.avro.reader" -> java.lang.Boolean.TRUE
+        "specific.avro.reader" -> java.lang.Boolean.TRUE,
+        "schema.registry.url" -> schemaUrl
       ).asJava
 
-      override val keySerializer: Resource[F, KeySerializer[F, K]] = {
-        val delegate = new KafkaAvroSerializer().asInstanceOf[KafkaSerializer[K]]
-        delegate.configure(avroConfig, true)
-        Resource.pure(Serializer.delegate[F, K](delegate))
-      }
+      override val keySerializer: Resource[F, KeySerializer[F, String]] =
+        Resource.pure(Serializer[F, String])
+
       override val valueSerializer: Resource[F, ValueSerializer[F, V]] = {
         val delegate = new KafkaAvroSerializer().asInstanceOf[KafkaSerializer[V]]
         delegate.configure(avroConfig, true)
         Resource.pure(Serializer.delegate[F, V](delegate))
       }
 
-      override val keyDeserializer: Resource[F, KeyDeserializer[F, K]] = {
-        val delegate = new KafkaAvroDeserializer().asInstanceOf[KafkaDeserializer[K]]
-        delegate.configure(avroConfig, true)
-        Resource.pure(Deserializer.delegate[F, K](delegate))
-      }
+      override val keyDeserializer: Resource[F, KeyDeserializer[F, String]] =
+        Resource.pure(Deserializer[F, String])
 
       override val valueDeserializer: Resource[F, ValueDeserializer[F, V]] = {
         val delegate = new KafkaAvroDeserializer().asInstanceOf[KafkaDeserializer[V]]
