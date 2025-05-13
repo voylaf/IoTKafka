@@ -27,8 +27,7 @@ lazy val root = (project in file("."))
       "ch.qos.logback"              % "logback-classic"       % "1.5.18",
       "com.github.fd4s"            %% "fs2-kafka"             % "3.7.0",
       "co.fs2"                     %% "fs2-core"              % "3.12.0",
-      "org.typelevel"              %% "cats-effect"           % "3.6.1",
-      "com.chuusai"                %% "shapeless"             % "2.3.13"
+      "org.typelevel"              %% "cats-effect"           % "3.6.1"
     ),
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-core",
