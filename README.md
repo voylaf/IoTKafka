@@ -38,12 +38,16 @@ schema.registry.url = "http://localhost:8081"
 
 ## Running the Project
 ### Producer
-*sbt runMain ArticleJsonStringProducerFs2*
+```bash
+sbt runMain ArticleJsonStringProducerFs2
+```
 
 The producer uses FancyGenerator.withSeed(seed) to lazily create articles and publish them to Kafka.
 
 ### Consumer
-*sbt runMain ArticleJsonStringConsumerFs2*
+```bash
+sbt runMain ArticleJsonStringConsumerFs2
+```
 
 The consumer reads messages from Kafka (either Article or AvroArticle), logs them, and commits offsets in batches.
 
