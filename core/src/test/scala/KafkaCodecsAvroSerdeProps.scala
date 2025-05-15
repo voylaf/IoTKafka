@@ -1,5 +1,4 @@
 package com.github.voylaf
-
 import domain.{Article, Author}
 import avro.{Article => AvroArticle}
 

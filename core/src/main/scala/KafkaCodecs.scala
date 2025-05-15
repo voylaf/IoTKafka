@@ -3,10 +3,11 @@ package com.github.voylaf
 import cats.effect.{Resource, Sync}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka._
-import io.circe.{parser, Decoder, Encoder}
 import io.circe.syntax._
+import io.circe.{Decoder, Encoder, parser}
 import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
 import org.apache.avro.specific.SpecificRecord
+
 import scala.jdk.CollectionConverters._
 
 sealed trait SerdeFormat

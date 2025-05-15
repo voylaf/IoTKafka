@@ -2,6 +2,6 @@
 <project version="4">
   <component name="ScalaCompilerConfiguration">
     <option name="separateProdTestSources" value="true" />
-    <profile name="sbt 1" modules="IoTKafka,IoTKafka.main,IoTKafka.test" />
+    <profile name="sbt 1" modules="IoTKafka,IoTKafka-root,IoTKafka-root.IoTKafka-core,IoTKafka-root.IoTKafka-core.main,IoTKafka-root.IoTKafka-core.test,IoTKafka-root.IoTKafka-it,IoTKafka-root.IoTKafka-it.main,IoTKafka-root.IoTKafka-it.test,IoTKafka-root.main,IoTKafka-root.test,IoTKafka.main,IoTKafka.test,root,root.IoTKafka.core,root.IoTKafka.core.main,root.IoTKafka.core.test,root.IoTKafka.it,root.IoTKafka.it.main,root.IoTKafka.it.test,root.main,root.test" />
   </component>
 </project>

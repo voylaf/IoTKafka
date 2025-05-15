@@ -1,9 +1,8 @@
 package com.github.voylaf
 package domain
 
-import avro.{Article => AvroArticle, Author => AvroAuthor}
-
 import java.time.LocalDate
+import avro.{Article => AvroArticle, Author => AvroAuthor}
 
 final case class Article(
     id: String,

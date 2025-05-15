@@ -4,7 +4,6 @@ package consumer
 import cats.effect.{ExitCode, IO, IOApp, Resource}
 import avro.{Article => AvroArticle, Author => AvroAuthor}
 import domain.Article
-
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka._
 import fs2.{Stream => Fs2Stream}

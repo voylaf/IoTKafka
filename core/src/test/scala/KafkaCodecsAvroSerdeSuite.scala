@@ -1,5 +1,4 @@
 package com.github.voylaf
-
 import avro.{Article => AvroArticle}
 
 import cats.effect.IO

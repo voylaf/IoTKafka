@@ -6,8 +6,8 @@ import domain.Article
 import avro.{Article => AvroArticle}
 
 import com.typesafe.scalalogging.StrictLogging
-import fs2.{Stream => Fs2Stream}
 import fs2.kafka.{KafkaProducer, ProducerRecord}
+import fs2.{Stream => Fs2Stream}
 import io.circe.generic.auto._
 
 object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
