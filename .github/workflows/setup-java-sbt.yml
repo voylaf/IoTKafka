@@ -22,6 +22,7 @@ jobs:
       - name: Install SBT with Coursier
         run: |
           curl -fLo cs https://github.com/coursier/coursier/releases/download/v2.1.24/cs-x86_64-pc-linux.gz
+          gunzip cs.gz
           chmod +x cs
           ./cs setup -y
           echo "$HOME/.local/share/coursier/bin" >> $GITHUB_PATH
