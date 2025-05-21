@@ -39,14 +39,14 @@ schema.registry.url = "http://localhost:8081"
 ## Running the Project
 ### Producer
 ```bash
-sbt runMain ArticleJsonStringProducerFs2
+sbt "core/runMain com.github.voylaf.producer.ArticleJsonStringProducerFs2"
 ```
 
 The producer uses FancyGenerator.withSeed(seed) to lazily create articles and publish them to Kafka.
 
 ### Consumer
 ```bash
-sbt runMain ArticleJsonStringConsumerFs2
+sbt "core/runMain com.github.voylaf.consumer.ArticleJsonStringConsumerFs2"
 ```
 
 The consumer reads messages from Kafka (either Article or AvroArticle), logs them, and commits offsets in batches.
@@ -98,3 +98,7 @@ In production, messages would likely come from:
 - scala-logging / logback
 
 - Typesafe Config
+
+- testcontainers
+
+- testcontainers-scala-core
