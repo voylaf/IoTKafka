@@ -16,7 +16,7 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
-          java-version: 17
+          java-version: 21
           distribution: temurin
 
       - name: Cache SBT
@@ -29,4 +29,4 @@ jobs:
           key: sbt-cache-${{ runner.os }}
 
       - name: Run tests
-        run: sbt ${{ inputs.test-type }}/tes
+        run: sbt ${{ inputs.test-type }}/test
