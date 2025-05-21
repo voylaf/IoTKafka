@@ -1,0 +1,19 @@
+name: CI Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  unit-tests:
+    uses: ./.github/workflows/setup-java-sbt.yml
+    with:
+      test-type: core
+
+  integration-tests:
+    needs: unit-tests
+    uses: ./.github/workflows/setup-java-sbt.yml
+    with:
+      test-type: it
