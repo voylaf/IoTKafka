@@ -21,7 +21,7 @@ jobs:
 
       - name: Install SBT (sbt-extras)
         run: |
-          curl -L -o sbt https://raw.githubusercontent.com/sbt/sbt-extras/master/sbt
+          curl -Ls https://raw.githubusercontent.com/dwijnand/sbt-extras/master/sbt
           chmod +x sbt
           sudo mv sbt /usr/local/bin/sbt
 
