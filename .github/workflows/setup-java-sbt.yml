@@ -1,0 +1,32 @@
+name: Setup Java and SBT Cache
+
+on:
+  workflow_call:
+    inputs:
+      test-type:
+        required: true
+        type: string
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Cache SBT
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt
+            ~/.coursier
+          key: sbt-cache-${{ runner.os }}
+
+      - name: Run tests
+        run: sbt ${{ inputs.test-type }}/tes
