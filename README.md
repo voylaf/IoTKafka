@@ -1,3 +1,5 @@
+[![CI Build](https://github.com/voylaf/IoTKafka/actions/workflows/ci-build.yml/badge.svg)](https://github.com/voylaf/IoTKafka/actions/workflows/ci-build.yml)
+
 # Kafka FS2 Scala Project
 
 This project demonstrates a Kafka **Producer** and **Consumer** written in **Scala** using **FS2**. It supports pluggable serialization via **Circe/JSON** or **Avro** with Confluent Schema Registry. Serialization format is configurable via `.conf`.
