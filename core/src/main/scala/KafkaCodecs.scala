@@ -4,7 +4,7 @@ import cats.effect.{Resource, Sync}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka._
 import io.circe.syntax._
-import io.circe.{Decoder, Encoder, parser}
+import io.circe.{parser, Decoder, Encoder}
 import io.confluent.kafka.serializers.{KafkaAvroDeserializer, KafkaAvroSerializer}
 import org.apache.avro.specific.SpecificRecord
 
@@ -65,7 +65,7 @@ object KafkaCodecs extends StrictLogging {
     new KafkaSerdeProvider[F, String, V] {
       private val avroConfig: java.util.Map[String, AnyRef] = Map[String, AnyRef](
         "specific.avro.reader" -> java.lang.Boolean.TRUE,
-        "schema.registry.url" -> schemaUrl
+        "schema.registry.url"  -> schemaUrl
       ).asJava
 
       override val keySerializer: Resource[F, KeySerializer[F, String]] =
@@ -109,6 +109,4 @@ object KafkaCodecs extends StrictLogging {
       .withBootstrapServers(bootstrapServers)
       .withAutoOffsetReset(AutoOffsetReset.Earliest)
   }
-
 }
-
