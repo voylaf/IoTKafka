@@ -21,9 +21,7 @@ jobs:
 
       - name: Install SBT (sbt-extras)
         run: |
-          curl -Ls https://raw.githubusercontent.com/dwijnand/sbt-extras/master/sbt
-          chmod +x sbt
-          sudo mv sbt /usr/local/bin/sbt
+          curl -Ls https://raw.githubusercontent.com/dwijnand/sbt-extras/master/sbt > ~/bin/sbt && chmod 0755 ~/bin/sbt
 
       - name: Cache SBT
         uses: actions/cache@v3
