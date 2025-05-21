@@ -19,10 +19,14 @@ jobs:
           java-version: 21
           distribution: temurin
 
-      - name: Install SBT (sbt-extras)
+      - name: Install SBT (coursier)
         run: |
-          curl -Ls https://raw.githubusercontent.com/dwijnand/sbt-extras/master/sbt > ~/bin/sbt && chmod 0755 ~/bin/sbt
-
+          curl -fLo cs.gz https://github.com/coursier/coursier/releases/download/v2.1.24/cs-x86_64-pc-linux.gz
+          gunzip cs.gz
+          chmod +x cs
+          ./cs setup -y
+          echo "$HOME/.local/share/coursier/bin" >> $GITHUB_PATH
+      
       - name: Cache SBT
         uses: actions/cache@v3
         with:
