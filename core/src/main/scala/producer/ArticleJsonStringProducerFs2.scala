@@ -5,10 +5,15 @@ import cats.effect.{ExitCode, IO, IOApp, Resource}
 import domain.Article
 import avro.{Article => AvroArticle}
 
+import cats.implicits.catsSyntaxApplyOps
+import com.github.voylaf.metrics.{KafkaMetrics, MetricsServer}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka.{KafkaProducer, ProducerRecord}
 import fs2.{Stream => Fs2Stream}
 import io.circe.generic.auto._
+
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
 
@@ -41,28 +46,39 @@ object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
         .map(a => ProducerRecord(topic, keyFn(a), a))
         .chunkN(chunkSize)
         .evalTap(chunk => IO(logger.info(s"Sending chunk with ${chunk.size} articles")))
-        .parEvalMapUnordered(parallelism)(chunk => producer.produce(chunk).void)
+        .parEvalMapUnordered(parallelism) { chunk =>
+          producer
+            .produce(chunk)
+            .flatTap { _ =>
+              IO(KafkaMetrics.producedMessages.inc(chunk.size))
+            }.void
+        }
     }
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
+    val metrics = MetricsServer.start(8092)
     val kafkaStreamResource: IO[Resource[IO, Fs2Stream[IO, Unit]]] = serdeFormatIO.map {
       case SerdeFormat.Circe =>
-        stream[Article](
-          records = articles,
-          keyFn = _.id,
-          logFn = a => s"Sending article with id=${a.id}, title=${a.title}",
-          serdeProvider = KafkaCodecs.circeSerdeProvider[IO, String, Article]
+        metrics.flatMap(_ =>
+          stream[Article](
+            records = articles,
+            keyFn = _.id,
+            logFn = a => s"Sending article with id=${a.id}, title=${a.title}",
+            serdeProvider = KafkaCodecs.circeSerdeProvider[IO, String, Article]
+          )
         )
 
       case SerdeFormat.Avro =>
         val avroArticles = articles.map(Article.toAvroArticle)
         val schemaUrl    = config.getString("schema.registry.url")
-        stream[AvroArticle](
-          records = avroArticles,
-          keyFn = _.id,
-          logFn = a => s"Sending article with id=${a.id}, title=${a.title}",
-          serdeProvider = KafkaCodecs.avroSerdeProvider[IO, String, AvroArticle](schemaUrl)
+        metrics.flatMap(_ =>
+          stream[AvroArticle](
+            records = avroArticles,
+            keyFn = _.id,
+            logFn = a => s"Sending article with id=${a.id}, title=${a.title}",
+            serdeProvider = KafkaCodecs.avroSerdeProvider[IO, String, AvroArticle](schemaUrl)
+          )
         )
     }
 
@@ -70,6 +86,7 @@ object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
       .flatMap(_.use(_.compile.drain))
       .as(ExitCode.Success)
       .handleErrorWith { ex =>
+        KafkaMetrics.producerErrors.inc()
         logger.error("Error during stream execution", ex)
         IO.pure(ExitCode.Error)
       }

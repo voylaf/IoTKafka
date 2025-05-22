@@ -1,9 +1,11 @@
 package com.github.voylaf
 package consumer
 
-import cats.effect.{ExitCode, IO, IOApp, Resource}
-import avro.{Article => AvroArticle, Author => AvroAuthor}
+import avro.{Article => AvroArticle}
 import domain.Article
+import metrics.{KafkaMetrics, MetricsServer}
+
+import cats.effect.{ExitCode, IO, IOApp, Resource}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka._
 import fs2.{Stream => Fs2Stream}
@@ -42,6 +44,7 @@ object ArticleJsonStringConsumerFs2 extends IOApp with StrictLogging {
           .parEvalMapUnordered(parallelism) { committable =>
             for {
               article <- IO.pure(committable.record.value)
+              _       <- IO(KafkaMetrics.consumedMessages.inc())
               _       <- IO(logger.info(logFn(article)))
             } yield committable.offset
           }
@@ -50,24 +53,27 @@ object ArticleJsonStringConsumerFs2 extends IOApp with StrictLogging {
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
+    val metrics = MetricsServer.start(8091)
     serdeFormatIO.map {
       case SerdeFormat.Circe =>
         val serde = KafkaCodecs.circeSerdeProvider[IO, String, Article]
-        val logFn = (article: Article) => s"New article received. Title: ${article.title}. Author: ${article.author.name}"
-        stream[Article](logFn, serde)
+        val logFn = (article: Article) =>
+          s"New article received. Title: ${article.title}. Author: ${article.author.name}"
+        metrics.flatMap(_ => stream[Article](logFn, serde))
 
       case SerdeFormat.Avro =>
         val schemaUrl: String = config.getString("schema.registry.url")
         val serde             = KafkaCodecs.avroSerdeProvider[IO, String, AvroArticle](schemaUrl)
-        val logFn             = (article: AvroArticle) => s"New article received. Title: ${article.title}. Author: ${article.author.name}"
-        stream[AvroArticle](logFn, serde)
+        val logFn = (article: AvroArticle) =>
+          s"New article received. Title: ${article.title}. Author: ${article.author.name}"
+        metrics.flatMap(_ => stream[AvroArticle](logFn, serde))
     }
       .flatMap(_.use(_.compile.drain))
       .as(ExitCode.Success)
       .handleErrorWith { ex =>
+        KafkaMetrics.consumerErrors.inc()
         logger.error("Error during stream execution", ex)
         IO.pure(ExitCode.Error)
       }
-
   }
 }
