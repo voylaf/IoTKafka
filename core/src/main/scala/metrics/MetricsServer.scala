@@ -1,4 +1,5 @@
-package com.github.voylaf.metrics
+package com.github.voylaf
+package metrics
 
 import cats.effect._
 import cats.implicits.toFunctorOps

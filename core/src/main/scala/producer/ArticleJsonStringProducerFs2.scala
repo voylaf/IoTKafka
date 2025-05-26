@@ -5,14 +5,13 @@ import cats.effect.{ExitCode, IO, IOApp, Resource}
 import domain.Article
 import avro.{Article => AvroArticle}
 
-import cats.implicits.catsSyntaxApplyOps
-import com.github.voylaf.metrics.{KafkaMetrics, MetricsServer}
+import metrics.{KafkaMetrics, MetricsServer}
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka.{KafkaProducer, ProducerRecord}
 import fs2.{Stream => Fs2Stream}
 import io.circe.generic.auto._
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
 
 object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
@@ -26,10 +25,12 @@ object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
     case Left(_)       => IO.raiseError(new IllegalArgumentException("Unknown serde format"))
   }
 
-  val chunkSize: Int         = config.getInt("chunk-size")
-  val parallelism: Int       = config.getInt("parallelism")
-  val articles: Seq[Article] = FancyGenerator.withSeed(seed).articles.take(2000)
-  val servers: String        = config.getString("bootstrap.servers")
+  val chunkSize: Int               = config.getInt("chunk-size")
+  val parallelism: Int             = config.getInt("parallelism")
+  val prometheusPort: Int          = config.getInt("prometheus.port")
+  val sleepingTime: FiniteDuration = config.getInt("sleep-time-seconds") seconds
+  val articles: Seq[Article]       = FancyGenerator.withSeed(seed).articles.take(2000)
+  val servers: String              = config.getString("bootstrap.servers")
 
   private def stream[A](
       records: Seq[A],
@@ -57,7 +58,7 @@ object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
-    val metrics = MetricsServer.start(8092)
+    val metrics = MetricsServer.start(prometheusPort)
     val kafkaStreamResource: IO[Resource[IO, Fs2Stream[IO, Unit]]] = serdeFormatIO.map {
       case SerdeFormat.Circe =>
         metrics.flatMap(_ =>
@@ -83,7 +84,7 @@ object ArticleJsonStringProducerFs2 extends IOApp with StrictLogging {
     }
 
     kafkaStreamResource
-      .flatMap(_.use(_.compile.drain))
+      .flatMap(_.use(_.compile.drain >> IO.sleep(sleepingTime)))
       .as(ExitCode.Success)
       .handleErrorWith { ex =>
         KafkaMetrics.producerErrors.inc()

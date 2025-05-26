@@ -27,8 +27,9 @@ object ArticleJsonStringConsumerFs2 extends IOApp with StrictLogging {
       case Left(_)       => IO.raiseError(new IllegalArgumentException("Unknown serde format"))
     }
 
-  def chunkSize: Int   = config.getInt("chunk-size")
-  def parallelism: Int = config.getInt("parallelism")
+  def chunkSize: Int      = config.getInt("chunk-size")
+  def parallelism: Int    = config.getInt("parallelism")
+  val prometheusPort: Int = config.getInt("prometheus.port")
 
 //  is this a small hack via avro4s?
   private def stream[A: Decoder](
@@ -53,7 +54,7 @@ object ArticleJsonStringConsumerFs2 extends IOApp with StrictLogging {
   }
 
   override def run(args: List[String]): IO[ExitCode] = {
-    val metrics = MetricsServer.start(8091)
+    val metrics = MetricsServer.start(prometheusPort)
     serdeFormatIO.map {
       case SerdeFormat.Circe =>
         val serde = KafkaCodecs.circeSerdeProvider[IO, String, Article]
