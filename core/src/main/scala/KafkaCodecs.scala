@@ -109,4 +109,23 @@ object KafkaCodecs extends StrictLogging {
       .withBootstrapServers(bootstrapServers)
       .withAutoOffsetReset(AutoOffsetReset.Earliest)
   }
+
+  implicit class KafkaSerdeProviderOps[F[_], K, A](val inner: KafkaSerdeProvider[F, K, A]) extends AnyVal {
+    def contramap[B](to: B => A, from: A => B): KafkaSerdeProvider[F, K, B] =
+      new KafkaSerdeProvider[F, K, B] {
+        val keySerializer: Resource[F, KeySerializer[F, K]]     = inner.keySerializer
+        val keyDeserializer: Resource[F, KeyDeserializer[F, K]] = inner.keyDeserializer
+
+        val valueSerializer: Resource[F, ValueSerializer[F, B]]     = inner.valueSerializer.map(_.contramap(to))
+        val valueDeserializer: Resource[F, ValueDeserializer[F, B]] = inner.valueDeserializer.map(_.map(from))
+      }
+  }
+
+  def resolveSerde[F[_], A](format: SerdeFormat, schemaRegistryUrl: Option[String])(
+      implicit ss: SerdeSupport[F, A]
+  ): KafkaSerdeProvider[F, String, A] =
+    format match {
+      case SerdeFormat.Circe => ss.circe
+      case SerdeFormat.Avro  => ss.avro(schemaRegistryUrl.getOrElse(sys.error("Missing schema registry URL")))
+    }
 }

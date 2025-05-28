@@ -3,40 +3,44 @@ package producer
 
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
-import pureconfig._
-import pureconfig.generic.auto._
 
-import java.util.Properties
-import scala.jdk.CollectionConverters.CollectionHasAsScala
-import scala.language.implicitConversions
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import scala.language.{implicitConversions, postfixOps}
+import scala.util.Try
 
-final case class ProducerConfig(producer: Config, topic: String, seed: Long)
+final case class ProducerConfig(
+    clientId: String,
+    topic: String,
+    bootstrapServers: String,
+    serdeFormat: String,
+    schemaRegistryUrl: Option[String],
+    chunkSize: Int,
+    parallelism: Int,
+    prometheusPort: Int,
+    seed: Long,
+    sleepingTime: FiniteDuration
+)
 
 object ProducerConfig extends LazyLogging {
-  def getConfig(resource: String): (Config, String, Long) = {
+  def getConfig(resource: String): Config = {
     // Load the full configuration
     val fullConfig: Config = ConfigFactory.load(resource)
 
     // Get producer-config with links resolving
-    val producerConfig: Config = fullConfig.getConfig("producer").resolve()
-
-    // Read topic and seed separately via PureConfig
-    val topic = ConfigSource.fromConfig(fullConfig).loadOrThrow[ProducerConfig].topic
-    val seed = ConfigSource.fromConfig(fullConfig).loadOrThrow[ProducerConfig].seed
-
-    logger.info(s"[CONFIG] topic: $topic")
-
-    (producerConfig, topic, seed)
+    fullConfig.getConfig("producer").resolve()
   }
 
-  private def producerConfigToProperties(config: Config): Properties = {
-    val map: Map[String, AnyRef] = config.entrySet().asScala.map(entry =>
-      entry.getKey -> config.getAnyRef(entry.getKey)
-    ).toMap
-
-    val props = new Properties()
-    map.foreach { case (k, v) => props.put(k, v) }
-    props
-  }
-
+  def load(config: Config): ProducerConfig =
+    ProducerConfig(
+      clientId = config.getString("client.id"),
+      topic = config.getString("topic"),
+      bootstrapServers = config.getString("bootstrap.servers"),
+      serdeFormat = config.getString("serde-format"),
+      schemaRegistryUrl = Try(config.getString("schema.registry.url")).toOption,
+      chunkSize = config.getInt("chunk-size"),
+      parallelism = config.getInt("parallelism"),
+      prometheusPort = config.getInt("prometheus.port"),
+      seed = config.getLong("seed"),
+      sleepingTime = config.getLong("sleeping-time-seconds") seconds
+    )
 }

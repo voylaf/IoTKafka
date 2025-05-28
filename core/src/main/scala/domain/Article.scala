@@ -1,8 +1,16 @@
 package com.github.voylaf
 package domain
 
-import java.time.LocalDate
+import KafkaCodecs.KafkaSerdeProviderOps
 import avro.{Article => AvroArticle, Author => AvroAuthor}
+
+import cats.effect.Sync
+import io.circe.generic.auto._
+
+import java.time.LocalDate
+import scala.language.implicitConversions
+
+trait KafkaModel
 
 final case class Article(
     id: String,
@@ -10,12 +18,12 @@ final case class Article(
     content: String,
     created: LocalDate,
     author: Author
-)
+) extends KafkaModel
 
 case class Author(name: String)
 
 object Article {
-  def fromAvroArticle(avroArticle: AvroArticle): Article = {
+  implicit def fromAvroArticle(avroArticle: AvroArticle): Article = {
     Article(
       avroArticle.id,
       avroArticle.title,
@@ -34,4 +42,17 @@ object Article {
       AvroAuthor(article.author.name)
     )
   }
+
+  implicit def articleSerdeSupport[F[_]: Sync]: SerdeSupport[F, Article] =
+    new SerdeSupport[F, Article] {
+      def circe: KafkaSerdeProvider[F, String, Article] =
+        KafkaCodecs.circeSerdeProvider[F, String, Article]
+
+      def avro(schemaRegistryUrl: String): KafkaSerdeProvider[F, String, Article] =
+        KafkaCodecs.avroSerdeProvider[F, String, AvroArticle](schemaRegistryUrl)
+          .contramap[Article](
+            to = Article.toAvroArticle,
+            from = Article.fromAvroArticle
+          )
+    }
 }
