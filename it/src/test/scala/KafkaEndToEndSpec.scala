@@ -146,7 +146,7 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
       val bootstrap   = kafka.getBootstrapServers
       val topic       = "integration-articles"
       val serdeFormat = "circe"
-      val avroConsumerConfig = ConsumerConfig(
+      val circeConsumerConfig = ConsumerConfig(
         groupId = "integration-e2e-test",
         topic = topic,
         bootstrapServers = bootstrap,
@@ -157,7 +157,7 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
         prometheusPort = 8091
       )
 
-      val avroProducerConfig = ProducerConfig(
+      val circeProducerConfig = ProducerConfig(
         clientId = "integration-e2e-test",
         topic = topic,
         bootstrapServers = bootstrap,
@@ -172,19 +172,19 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
 
       def consumerStream(ref: Ref[IO, List[Article]]): Resource[IO, fs2.Stream[IO, Unit]] =
         IOConsumerProgram.stream[Article](
-          avroConsumerConfig,
-          IOConsumerProgram.serde(avroConsumerConfig),
+          circeConsumerConfig,
+          IOConsumerProgram.serde(circeConsumerConfig),
           (article: Article) => ref.update(_ :+ article)
         )
 
       for {
         collected <- Ref.of[IO, List[Article]](Nil)
-        metrics = MetricsServer.start(avroConsumerConfig.prometheusPort)
+        metrics = MetricsServer.start(circeConsumerConfig.prometheusPort)
         consumerFiber <- KafkaConsumerProgram.runWithMetrics(metrics, consumerStream(collected))
           .timeoutTo(15.seconds, IO.raiseError(new RuntimeException("Consumer timed out")))
           .start
         _ <- IOProducerProgram
-          .run(avroProducerConfig)(List(sampleArticle))
+          .run(circeProducerConfig)(List(sampleArticle))
           .timeoutTo(10.seconds, IO.raiseError(new RuntimeException("Producer timed out")))
 
         _ <- IO.sleep(5 seconds)

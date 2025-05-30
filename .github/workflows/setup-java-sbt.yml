@@ -19,13 +19,18 @@ jobs:
           java-version: 21
           distribution: temurin
 
-      - name: Install SBT (coursier)
+      - name: Install SBT (if not already installed)
         run: |
-          curl -fLo cs.gz https://github.com/coursier/coursier/releases/download/v2.1.24/cs-x86_64-pc-linux.gz
-          gunzip cs.gz
-          chmod +x cs
-          ./cs setup -y
-          echo "$HOME/.local/share/coursier/bin" >> $GITHUB_PATH
+          if ! command -v sbt &> /dev/null; then
+            echo "SBT not found. Installing via Coursier..."
+            curl -fLo cs.gz https://github.com/coursier/coursier/releases/download/v2.1.24/cs-x86_64-pc-linux.gz
+            gunzip cs.gz
+            chmod +x cs
+            ./cs setup -y
+            echo "$HOME/.local/share/coursier/bin" >> $GITHUB_PATH
+          else
+            echo "SBT already installed. Skipping installation."
+          fi
       
       - name: Cache SBT
         uses: actions/cache@v3
@@ -37,4 +42,4 @@ jobs:
           key: sbt-cache-${{ runner.os }}
 
       - name: Run tests
-        run: sbt ${{ inputs.test-type }}/test
+        run: sbt -Dmunit.timeout=120s ${{ inputs.test-type }}/test
