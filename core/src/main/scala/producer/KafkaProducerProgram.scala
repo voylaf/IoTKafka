@@ -1,10 +1,9 @@
 package com.github.voylaf
 package producer
 
-import cats.effect.{Async, ExitCode, IO, Resource, Sync}
+import cats.effect.{Async, ExitCode, Resource, Sync}
 import metrics.KafkaMetrics
 
-import cats.Applicative
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka.{KafkaProducer, ProducerRecord}

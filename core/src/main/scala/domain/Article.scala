@@ -56,6 +56,11 @@ object Article {
           )
     }
 
-  implicit def articleLoggingSupport: LoggingSupport[Article] =
-    (article: Article) => s"New article received. Title: ${article.title}. Author: ${article.author.name}"
+  implicit def articleLoggingSupport: LoggingSupport[Article] = new LoggingSupport[Article] {
+    def logMessageRecieved(article: Article): String = s"New article received. Title: ${article.title}. Author: ${article.author.name}"
+
+    def logMessageSended(article: Article): String = s"Sending article with id=${article.id}, title=${article.title}"
+
+    def key(a: Article): String = a.id
+  }
 }

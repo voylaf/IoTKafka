@@ -9,7 +9,7 @@ object ProducerFs2 extends IOApp with StrictLogging {
 
   override def run(args: List[String]): IO[ExitCode] = {
     val producerConfig = ProducerConfig.load(ProducerConfig.getConfig("kafka-intro.conf"))
-    ArticleProducerProgram.run(producerConfig)(
+    IOProducerProgram.run(producerConfig)(
       FancyGenerator.withSeed(producerConfig.seed).articles take 500
     )
   }

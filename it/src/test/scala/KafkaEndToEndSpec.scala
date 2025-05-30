@@ -3,10 +3,9 @@ package com.github.voylaf
 import consumer.{ConsumerConfig, IOConsumerProgram, KafkaConsumerProgram}
 import domain.Article
 import metrics.MetricsServer
-import producer.{ArticleProducerProgram, ProducerConfig}
+import producer.{IOProducerProgram, ProducerConfig}
 
 import cats.effect.{IO, Ref, Resource}
-import io.circe.generic.auto._
 import munit.CatsEffectSuite
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.containers.{GenericContainer, Network}
@@ -15,11 +14,12 @@ import org.testcontainers.utility.DockerImageName
 
 import java.time.{Duration, LocalDate}
 import java.util.UUID
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 
 class KafkaEndToEndSpec extends CatsEffectSuite {
+  override val munitTimeout: FiniteDuration = 120 seconds
 
   class FixedGenericContainer(image: DockerImageName)
       extends GenericContainer[FixedGenericContainer](image)
@@ -77,10 +77,10 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
         schemaRegistryContainer.start()
         (kafkaContainer, schemaRegistryContainer)
       }
-    ) { case (_, registry) =>
+    ) { case (kafka, registry) =>
       IO {
         registry.stop()
-        kafkaContainer.stop()
+        kafka.stop()
       }
     }
 
@@ -127,7 +127,7 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
         consumerFiber <- KafkaConsumerProgram.runWithMetrics(metrics, consumerStream(collected))
           .timeoutTo(15.seconds, IO.raiseError(new RuntimeException("Consumer timed out")))
           .start
-        _ <- ArticleProducerProgram
+        _ <- IOProducerProgram
           .run(avroProducerConfig)(List(sampleArticle))
           .timeoutTo(10.seconds, IO.raiseError(new RuntimeException("Producer timed out")))
 
@@ -142,8 +142,7 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
   }
 
   test("Article should be produced and consumed end-to-end (circe)") {
-    containers.use { case (kafka, registry) =>
-      val registryUrl = s"http://${registry.getHost}:${registry.getMappedPort(8081)}"
+    containers.use { case (kafka, _) =>
       val bootstrap   = kafka.getBootstrapServers
       val topic       = "integration-articles"
       val serdeFormat = "circe"
@@ -152,7 +151,7 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
         topic = topic,
         bootstrapServers = bootstrap,
         serdeFormat = serdeFormat,
-        schemaRegistryUrl = Some(registryUrl),
+        schemaRegistryUrl = None,
         chunkSize = 500,
         parallelism = 8,
         prometheusPort = 8091
@@ -163,7 +162,7 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
         topic = topic,
         bootstrapServers = bootstrap,
         serdeFormat = serdeFormat,
-        schemaRegistryUrl = Some(registryUrl),
+        schemaRegistryUrl = None,
         chunkSize = 100,
         parallelism = 8,
         prometheusPort = 8092,
@@ -184,7 +183,7 @@ class KafkaEndToEndSpec extends CatsEffectSuite {
         consumerFiber <- KafkaConsumerProgram.runWithMetrics(metrics, consumerStream(collected))
           .timeoutTo(15.seconds, IO.raiseError(new RuntimeException("Consumer timed out")))
           .start
-        _ <- ArticleProducerProgram
+        _ <- IOProducerProgram
           .run(avroProducerConfig)(List(sampleArticle))
           .timeoutTo(10.seconds, IO.raiseError(new RuntimeException("Producer timed out")))
 

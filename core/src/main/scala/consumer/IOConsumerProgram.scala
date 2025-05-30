@@ -38,7 +38,7 @@ object IOConsumerProgram extends StrictLogging {
     val handler = (a: A) =>
       IO {
         KafkaMetrics.consumedMessages.inc()
-        logger.info(loggingSupport.logMessage(a))
+        logger.info(loggingSupport.logMessageRecieved(a))
       }
 
     KafkaConsumerProgram.runWithMetrics(metrics, stream[A](config, serde(config), handler))
