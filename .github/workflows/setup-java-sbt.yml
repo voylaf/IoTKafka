@@ -42,4 +42,4 @@ jobs:
           key: sbt-cache-${{ runner.os }}
 
       - name: Run tests
-        run: sbt -Dmunit.timeout=120s ${{ inputs.test-type }}/test
+        run: sbt ${{ inputs.test-type }}/test

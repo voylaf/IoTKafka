@@ -20,7 +20,7 @@ import scala.language.postfixOps
 import scala.util.chaining.scalaUtilChainingOps
 
 class KafkaAvroRoundTripIntegrationTest extends CatsEffectSuite {
-  override val munitTimeout: FiniteDuration = 120 seconds
+  override val munitIOTimeout: FiniteDuration = 120 seconds
 
   class FixedGenericContainer(image: DockerImageName)
       extends GenericContainer[FixedGenericContainer](image)

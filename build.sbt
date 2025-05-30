@@ -5,7 +5,7 @@ ThisBuild / scalaVersion := "2.13.16"
 val jacksonVersion        = "2.19.0"
 val circeVersion          = "0.14.13"
 val avro4sKafkaVersion    = "4.1.2"
-val TestcontainersVersion = "1.21.0"
+val TestcontainersVersion = "1.21.1"
 val prometheusVersion     = "0.16.0"
 val http4sVersion         = "0.23.30"
 
@@ -22,7 +22,7 @@ lazy val commonSettings = Seq(
     "com.github.pureconfig"      %% "pureconfig"            % "0.17.9",
     "com.typesafe.scala-logging" %% "scala-logging"         % "3.9.5",
     "ch.qos.logback"              % "logback-classic"       % "1.5.18",
-    "com.github.fd4s"            %% "fs2-kafka"             % "3.7.0",
+    "com.github.fd4s"            %% "fs2-kafka"             % "3.8.0",
     "co.fs2"                     %% "fs2-core"              % "3.12.0",
     "org.typelevel"              %% "cats-effect"           % "3.6.1",
     "io.prometheus"               % "simpleclient"          % prometheusVersion,
@@ -59,6 +59,7 @@ lazy val core = (project in file("core"))
 lazy val it = (project in file("it"))
   .settings(
     commonSettings,
+    parallelExecution := false,
     libraryDependencies ++= Seq(
       "org.testcontainers" % "testcontainers"            % TestcontainersVersion % Test,
       "org.testcontainers" % "kafka"                     % TestcontainersVersion % Test,
