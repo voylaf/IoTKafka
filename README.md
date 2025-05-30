@@ -2,70 +2,164 @@
 
 # Kafka FS2 Scala Project
 
-This project demonstrates a Kafka **Producer** and **Consumer** written in **Scala** using **FS2**. It supports pluggable serialization via **Circe/JSON** or **Avro** with Confluent Schema Registry. Serialization format is configurable via `.conf`.
+A modular and testable Kafka application in Scala using FS2, Cats Effect, Avro, Circe, Prometheus metrics, and Testcontainers.
+
+---
 
 ## Motivation
-This project aims to demonstrate a clean, testable Kafka setup in Scala with full support for multiple serialization formats and a functional streaming architecture.
+This project is designed to demonstrate a clean, scalable Kafka producer/consumer architecture in Scala, supporting:
+
+- ✅ Pluggable serialization: **Avro** or **Circe**
+- ✅ Fully testable with **unit**, **integration**, and **end-to-end tests**
+- ✅ **Prometheus** metrics endpoint
+- ✅ Modular design for extending to multiple domain types
+- ✅ Built using `fs2-kafka`, `cats-effect`, `pureconfig`, and `testcontainers-scala`
 
 ---
 
 ## Features
 
-- ✅ Kafka **Producer** via `fs2.kafka.KafkaProducer`
-- ✅ Kafka **Consumer** via `fs2.kafka.KafkaConsumer`
-- ✅ Swappable serialization:  
-  - **Circe (JSON)**
-  - **Avro (Confluent)**
-- ✅ Message generator using `FancyGenerator`
-- ✅ Lazy, streaming design with `Stream[IO, _]`
-- ✅ Configuration via Typesafe config (`.conf`)
-- ✅ Logging using `slf4j` + `logback`
-- ✅ Schema Registry integration for Avro
-- ✅ Chunked, parallel streaming with offset commits
+| Feature                   | Description                                         |
+|---------------------------|-----------------------------------------------------|
+| **Producer**              | FS2-based, chunked, parallel Kafka producer         |
+| **Consumer**              | Streamed and batched Kafka consumer with metrics    |
+| **Serde Support**         | Supports Circe and Avro, pluggable via config       |
+| **Metrics**               | Exposes `/metrics` endpoint for Prometheus         |
+| **Integration Tests**     | Uses Testcontainers to test Kafka + Schema Registry|
+| **Typeclass Abstraction** | `LoggingSupport[A]`, `SerdeSupport[F, A]`           |
 
+---
+
+## Typeclasses
+
+### `SerdeSupport[F[_], A]`
+
+```scala
+trait SerdeSupport[F[_], A] {
+  def circe: KafkaSerdeProvider[F, String, A]
+  def avro(schemaRegistryUrl: String): KafkaSerdeProvider[F, String, A]
+}
+```
+
+Used to provide serializers/deserializers based on config. Example:
+
+```scala
+implicit def articleSerdeSupport[F[_]: Sync]: SerdeSupport[F, Article] =
+    new SerdeSupport[F, Article] {
+      def circe: KafkaSerdeProvider[F, String, Article] =
+        KafkaCodecs.circeSerdeProvider[F, String, Article]
+
+      def avro(schemaRegistryUrl: String): KafkaSerdeProvider[F, String, Article] =
+        KafkaCodecs.avroSerdeProvider[F, String, AvroArticle](schemaRegistryUrl)
+          .contramap[Article](
+            to = Article.toAvroArticle,
+            from = Article.fromAvroArticle
+          )
+    }
+```
+
+### `LoggingSupport[A]`
+
+```scala
+trait LoggingSupport[A] {
+  def logMessageRecieved(a: A): String
+  def logMessageSended(a: A): String
+  def key(a: A): String
+}
+```
 ---
 
 ## Configuration (`kafka-intro.conf`)
 
 ```hocon
-bootstrap.servers = "localhost:9092"
-group.id = "article-consumer-group"
-chunk-size = 100
-parallelism = 4
-serde-format = "avro" // or "circe"
-schema.registry.url = "http://localhost:8081"
+bootstrap-servers = "localhost:9094"
+topic = "scala-articles"
+// circe or avro
+serde-format = "avro"
+producer {
+  client.id = scala-kafka-producer
+  bootstrap.servers = ${bootstrap-servers}
+  chunk-size = 100
+  parallelism = 4
+  serde-format = ${serde-format}
+  schema.registry.url = "http://localhost:8081"
+  prometheus.port = 8092
+  sleeping-time-seconds = 20
+  topic = ${topic}
+  seed = 20505
+}
+consumer {
+  group.id = scala-kafka-consumer
+  bootstrap.servers = ${bootstrap-servers}
+  chunk-size = 500
+  parallelism = 8
+  serde-format = ${serde-format}
+  schema.registry.url = "http://localhost:8081"
+  prometheus.port = 8091
+  topic = ${topic}
+}
 ```
 
 ---
 
-## Running the Project
-### Producer
+## Testing
+
+✅ Unit tests for serialization (using Discipline, munit)
+
+✅ Integration tests for Schema Registry + Avro
+
+✅ E2E tests for real production + consumption of messages
+
+Run all tests:
+
 ```bash
-sbt "core/runMain com.github.voylaf.producer.ArticleJsonStringProducerFs2"
+sbt test
 ```
-
-The producer uses FancyGenerator.withSeed(seed) to lazily create articles and publish them to Kafka.
-
-### Consumer
-```bash
-sbt "core/runMain com.github.voylaf.consumer.ArticleJsonStringConsumerFs2"
-```
-
-The consumer reads messages from Kafka (either Article or AvroArticle), logs them, and commits offsets in batches.
 
 ---
 
-## How Serialization Works
-The serialization format (SerdeFormat) is parsed from config.
+## Metrics
 
-A type-safe KafkaSerdeProvider supplies serializers/deserializers.
+Prometheus-compatible metrics endpoint on ports 8091 and 8092:
+```
+http://localhost:8091/metrics
+http://localhost:8092/metrics
+```
+Exposes:
 
-Circe requires an implicit Decoder[A]; Avro does not.
+- kafka_messages_produced_total
 
-The stream function is generic and safely avoids Decoder[A] requirements for Avro by using overloads or optional implicits.
+- kafka_messages_consumed_total
+
+- kafka_producer_errors_total
+
+- kafka_consumer_errors_total
+
+Prometheus queries are also available on port 9090:
+```
+http://localhost:9090/query
+```
+
+---
+## End-to-End Example
+See KafkaAvroRoundTripIntegrationTest.scala for how to:
+
+- spin up real Kafka + Schema Registry containers
+
+- produce a message
+
+- consume and assert it with Ref[IO, List[A]]
 
 ---
 
+## Build & Run
+To run the producer/consumer:
+```
+sbt "core/runMain com.github.voylaf.consumer.ConsumerFs2"
+sbt "core/runMain com.github.voylaf.producer.ProducerFs2"
+```
+
+---
 ## Production Considerations
 
 In this demo, messages are generated via a local generator (FancyGenerator).
@@ -101,6 +195,14 @@ In production, messages would likely come from:
 
 - Typesafe Config
 
+- prometheus-client
+
+- grafana
+
 - testcontainers
 
 - testcontainers-scala-core
+
+---
+## License
+MIT — free to use, modify, and contribute.

@@ -15,9 +15,12 @@ import domain.Article
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.kafka.ConfluentKafkaContainer
 
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.postfixOps
 import scala.util.chaining.scalaUtilChainingOps
 
 class KafkaAvroRoundTripIntegrationTest extends CatsEffectSuite {
+  override val munitTimeout: FiniteDuration = 120 seconds
 
   class FixedGenericContainer(image: DockerImageName)
       extends GenericContainer[FixedGenericContainer](image)
