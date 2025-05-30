@@ -12,7 +12,6 @@ import scala.jdk.CollectionConverters._
 import avro.{Article => AvroArticle}
 import domain.Article
 
-import io.circe.generic.codec.DerivedAsObjectCodec.deriveCodec
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.kafka.ConfluentKafkaContainer
 

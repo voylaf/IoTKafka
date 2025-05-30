@@ -55,4 +55,7 @@ object Article {
             from = Article.fromAvroArticle
           )
     }
+
+  implicit def articleLoggingSupport: LoggingSupport[Article] =
+    (article: Article) => s"New article received. Title: ${article.title}. Author: ${article.author.name}"
 }

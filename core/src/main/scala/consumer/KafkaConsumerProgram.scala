@@ -2,27 +2,24 @@ package com.github.voylaf
 package consumer
 
 import cats.effect.{Async, ExitCode, Resource}
-import cats.effect.kernel.Sync
 import metrics.KafkaMetrics
 
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka.{KafkaConsumer, commitBatchWithin}
-import fs2.{Stream => Fs2Stream}
-import io.circe.Decoder
 
 import scala.concurrent.duration.DurationInt
 
 object KafkaConsumerProgram extends StrictLogging {
-  def stream[F[_]: Async, A: Decoder](
+  def stream[F[_]: Async, A](
       topic: String,
       groupId: String,
       bootstrapServers: String,
       chunkSize: Int,
       parallelism: Int,
-      logFn: A => String,
-      serde: KafkaSerdeProvider[F, String, A]
-  ): Resource[F, Fs2Stream[F, Unit]] = {
+      serde: KafkaSerdeProvider[F, String, A],
+      handler: A => F[Unit]
+  ): Resource[F, fs2.Stream[F, Unit]] = {
     val consumerSettings = KafkaCodecs.consumerSettings[F, String, A](groupId, bootstrapServers)(serde)
 
     KafkaConsumer
@@ -31,19 +28,18 @@ object KafkaConsumerProgram extends StrictLogging {
       .map {
         _.stream
           .parEvalMapUnordered(parallelism) { committable =>
+            val message = committable.record.value
             for {
-              article <- Sync[F].delay(committable.record.value)
-              _       <- Sync[F].blocking(KafkaMetrics.consumedMessages.inc())
-              _       <- Sync[F].blocking(logger.info(logFn(article)))
+              _ <- handler(message)
             } yield committable.offset
           }
           .through(commitBatchWithin(chunkSize, 5.seconds))
       }
   }
 
-  def runWithMetrics[F[_]: Async, A](
+  def runWithMetrics[F[_]: Async](
       metrics: Resource[F, Unit],
-      stream: Resource[F, Fs2Stream[F, Unit]]
+      stream: Resource[F, fs2.Stream[F, Unit]]
   ): F[ExitCode] = {
     metrics
       .flatMap(_ => stream)
@@ -52,7 +48,7 @@ object KafkaConsumerProgram extends StrictLogging {
       .handleErrorWith { ex =>
         KafkaMetrics.consumerErrors.inc()
         logger.error("Error during stream execution", ex)
-        Sync[F].pure(ExitCode.Error)
+        ExitCode.Error.pure[F]
       }
   }
 }

@@ -97,7 +97,7 @@ object KafkaCodecs extends StrictLogging {
       .withBootstrapServers(bootstrapServers)
   }
 
-  def consumerSettings[F[_]: Sync, K: Decoder, V: Decoder](
+  def consumerSettings[F[_]: Sync, K, V](
       groupId: String,
       bootstrapServers: String
   )(serde: KafkaSerdeProvider[F, K, V]): ConsumerSettings[F, K, V] = {

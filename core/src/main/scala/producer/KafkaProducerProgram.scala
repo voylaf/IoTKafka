@@ -4,6 +4,7 @@ package producer
 import cats.effect.{Async, ExitCode, IO, Resource, Sync}
 import metrics.KafkaMetrics
 
+import cats.Applicative
 import cats.implicits._
 import com.typesafe.scalalogging.StrictLogging
 import fs2.kafka.{KafkaProducer, ProducerRecord}
@@ -52,7 +53,7 @@ object KafkaProducerProgram extends StrictLogging {
       .handleErrorWith { ex =>
         KafkaMetrics.producerErrors.inc()
         logger.error("Error during stream execution", ex)
-        Sync[F].pure(ExitCode.Error)
+        ExitCode.Error.pure[F]
       }
   }
 
